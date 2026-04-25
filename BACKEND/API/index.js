@@ -39,3 +39,9 @@ db.on('error', (error) => {
 db.once('connected', () => {
     console.log('Database Connected');
 })
+
+
+
+app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+});
