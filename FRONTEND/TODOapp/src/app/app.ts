@@ -16,7 +16,7 @@ apiURL : string;
 
 
 constructor(private http: HttpClient) {
-this.apiURL = 'https://maria256681.onrender.com/api';
+this.apiURL = 'https://maria256681.onrender.com';
 this.READ_tarefas();
 }
 
