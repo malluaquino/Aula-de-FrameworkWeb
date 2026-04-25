@@ -1,7 +1,8 @@
 require('dotenv').config();
 const express = require('express');
-const app = express();
+
 const cors = require('cors');
+const app = express();
 app.use(cors()); // Isso permite que qualquer site (inclusive sua futura URL da Vercel) acesse os dados
 
 app.use((req, res, next) => {
