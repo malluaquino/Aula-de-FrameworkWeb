@@ -1,5 +1,6 @@
 <div class="main">
 <h1>Maria Luíza de Souza Aquino, 256681| Larissa Silva de Jesus, 255284</h1>
+<div *ngIf="usuarioLogado()">
 <input class="lg-text-input" #campoNovoItem />
 <button class="btn-primary" (click)="CREATE_tarefa(campoNovoItem.value)">
 Adicionar Tarefa</button>
@@ -8,4 +9,11 @@ Adicionar Tarefa</button>
 <app-item [tarefa]="tarefaDoLoop"(removeTarefa)="DELETE_tarefa(tarefaDoLoop)"(modificaTarefa)="UPDATE_tarefa(tarefaDoLoop)"></app-item>
 </li>
 </ul>
+</div>
+<div *ngIf="!usuarioLogado()">
+<input #username placeholder="nome" class="lg-text-input" />
+<BR>
+<input #password placeholder="senha" class="lg-text-input" />
+<button class="btn-primary" (click)="login(username.value, password.value)">Login</button>
+</div>
 </div>
