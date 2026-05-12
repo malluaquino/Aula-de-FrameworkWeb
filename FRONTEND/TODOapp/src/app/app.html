@@ -16,4 +16,7 @@ Adicionar Tarefa</button>
 <input #password placeholder="senha" class="lg-text-input" />
 <button class="btn-primary" (click)="login(username.value, password.value)">Login</button>
 </div>
+<div *ngIf="usuarioLogado()">
+  <button class="btn-primary" (click)="logout()" style="background-color: #8b1212;">Sair / Trocar Usuário</button>
+  </div>
 </div>

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const modeloTarefa = require('../models/tarefa');
+const userModel = require('../models/user');
 var jwt = require('jsonwebtoken'); // Importe o JWT aqui em cima
 
 // ==========================================
@@ -8,7 +9,8 @@ var jwt = require('jsonwebtoken'); // Importe o JWT aqui em cima
 // ==========================================
 
 function verificaJWT(req, res, next) {
-    const token = req.headers['id-token']; // O Angular envia exatamente este nome
+    // O cabeçalho que vem do Postman/Angular deve ser 'id-token'
+    const token = req.headers['id-token']; 
     
     if (!token) return res.status(401).json({
         auth: false, message: 'Token nao fornecido'
@@ -17,7 +19,7 @@ function verificaJWT(req, res, next) {
     jwt.verify(token, 'segredo', function (err, decoded) {
         if (err) return res.status(500).json({ auth: false, message: 'Falha !' });
         
-        // Se o token for válido, ele deixa passar para a rota
+        req.userId = decoded.id; // Salva o ID do usuário para uso na rota
         next();
     });
 }
@@ -75,13 +77,22 @@ router.patch('/update/:id', verificaJWT, async (req, res) => {
 // ==========================================
 // 3. LOGIN (Aberta ao público)
 // ==========================================
-router.post('/login', (req, res) => {
-    if (req.body.nome === 'branqs' && req.body.senha === '1234') {
-        // Gera o token que expira em 5 minutos
-        const token = jwt.sign({ id: req.body.nome }, 'segredo', { expiresIn: 300 });
-        return res.json({ auth: true, token: token });
+router.post('/login', async (req, res) => {
+    try {
+        // Ele vai no MongoDB buscar um usuário com o nome digitado
+        const data = await userModel.findOne({ 'nome': req.body.nome });
+console.log("Usuário encontrado no banco:", data);
+        // Se achou o usuário E a senha do banco for igual à digitada...
+        if (data != null && data.senha === req.body.senha) {
+           const token = jwt.sign({ id: data._id.toString() }, 'segredo', { expiresIn: 300 });
+            return res.json({ token: token });
+        }
+        
+        // Se o nome não existir ou a senha estiver errada
+        res.status(500).json({ message: 'Login invalido!' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
-    res.status(500).json({ message: 'Login invalido!' });
 });
 
 module.exports = router;

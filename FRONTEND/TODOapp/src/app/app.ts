@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, OnInit } from '@angular/core';
 import { Tarefa } from "./tarefa";
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 
@@ -8,87 +8,90 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
   standalone: false,
   styleUrl: './app.css'
 })
-export class App {
+export class App implements OnInit {
   protected readonly title = signal('TODOapp');
   arrayDeTarefas = signal<Tarefa[]>([]);
   apiURL: string;
   usuarioLogado = signal(false);
-  tokenJWT = '{ "token":""}'; // Onde guardamos o crachá
-
 
   constructor(private http: HttpClient) {
-   
-    this.apiURL = 'https://maria256681.onrender.com';
-
+    this.apiURL = 'https://maria256681.vercel.app/';
   }
+
+  // Quando o site abre, ele verifica se já tem alguém logado
+ngOnInit() {
+  const token = localStorage.getItem('id-token');
+  if (token) {
+    this.READ_tarefas(); 
+  } else {
+    this.usuarioLogado.set(false);
+  }
+}
 
   // 1. LOGIN: Envia nome/senha e guarda o Token
-  login(username: string, password: string) {
-    var credenciais = { "nome": username, "senha": password };
-    this.http.post(`${this.apiURL}/api/login`, credenciais).subscribe(resultado => {
-      this.tokenJWT = JSON.stringify(resultado);
-      this.READ_tarefas(); // Tenta ler após receber o token
-    });
+  login(usernameDigitado: string, passwordDigitado: string) {
+    this.http.post<any>(`${this.apiURL}/login`, { 
+      nome: usernameDigitado, 
+      senha: passwordDigitado 
+    })
+    .subscribe(
+      res => {
+        localStorage.setItem('id-token', res.token);
+        alert('Login realizado com sucesso!');
+        this.READ_tarefas(); // Chama as tarefas e muda a tela
+      },
+      err => {
+        alert('Erro no login: ' + err.error.message);
+      }
+    );
   }
 
-  // 2. READ: Agora usando o cabeçalho 'id-token' corretamente
+  // Função auxiliar para pegar o Token e montar o Header (Evita repetição de código)
+  private getHeaders() {
+    const token = localStorage.getItem('id-token');
+    return new HttpHeaders().set("id-token", token || '');
+  }
+
+  // 2. READ: Busca as tarefas no banco
   READ_tarefas() {
-    const headerToken = new HttpHeaders().set("id-token", JSON.parse(this.tokenJWT).token);
-    
-    // IMPORTANTE: Adicionei o { headers: headerToken } na chamada GET
-    this.http.get<Tarefa[]>(`${this.apiURL}/api/getAll`, { headers: headerToken }).subscribe({
+    this.http.get<Tarefa[]>(`${this.apiURL}/getAll`, { headers: this.getHeaders() })
+    .subscribe({
       next: (resultado) => {
         this.arrayDeTarefas.set(resultado);
-        this.usuarioLogado.set(true); // Sucesso: mostra as tarefas
+        this.usuarioLogado.set(true); // Se conseguiu ler, libera a tela de tarefas
       },
       error: (error) => {
         console.error(error);
-        this.usuarioLogado.set(false); // Falha (ex: token expirado): volta pro login
+        this.usuarioLogado.set(false);
       }
     });
   }
 
-  // 3. CREATE/DELETE/UPDATE: Se você protegeu tudo no backend, precisa do header aqui também!
-  // 1. ADICIONAR TAREFA
-CREATE_tarefa(descricaoNovaTarefa: string) {
-  // Monta o cabeçalho com o token salvo
-  const headerToken = new HttpHeaders().set("id-token", JSON.parse(this.tokenJWT).token);
-  var novaTarefa = new Tarefa(descricaoNovaTarefa, false);
+  // 3. CREATE: Adiciona nova tarefa
+  CREATE_tarefa(descricaoNovaTarefa: string) {
+    var novaTarefa = new Tarefa(descricaoNovaTarefa, false);
+    this.http.post<Tarefa>(`${this.apiURL}/post`, novaTarefa, { headers: this.getHeaders() })
+    .subscribe(() => this.READ_tarefas());
+  }
 
-  // Passa o headerToken como terceiro parâmetro
-  this.http.post<Tarefa>(`${this.apiURL}/api/post`, novaTarefa, { headers: headerToken }).subscribe(
-      resultado => { 
-          console.log(resultado); 
-          this.READ_tarefas(); 
-      }
-  );
-}
+  // 4. DELETE: Exclui tarefa
+  DELETE_tarefa(tarefaAserRemovida: Tarefa) {
+    const id = tarefaAserRemovida._id;
+    this.http.delete<Tarefa>(`${this.apiURL}/delete/${id}`, { headers: this.getHeaders() })
+    .subscribe(() => this.READ_tarefas());
+  }
 
-// 2. EXCLUIR TAREFA
-DELETE_tarefa(tarefaAserRemovida: Tarefa) {
-  const headerToken = new HttpHeaders().set("id-token", JSON.parse(this.tokenJWT).token);
-  const id = tarefaAserRemovida._id;
+  // 5. UPDATE: Edita tarefa
+  UPDATE_tarefa(tarefaAserModificada: Tarefa) {
+    const id = tarefaAserModificada._id;
+    this.http.patch<Tarefa>(`${this.apiURL}/update/${id}`, tarefaAserModificada, { headers: this.getHeaders() })
+    .subscribe(() => this.READ_tarefas());
+  }
 
-  // Passa o headerToken no DELETE
-  this.http.delete<Tarefa>(`${this.apiURL}/api/delete/${id}`, { headers: headerToken }).subscribe(
-      resultado => { 
-          console.log(resultado); 
-          this.READ_tarefas(); 
-      }
-  );
-}
-
-// 3. EDITAR TAREFA
-UPDATE_tarefa(tarefaAserModificada: Tarefa) {
-  const headerToken = new HttpHeaders().set("id-token", JSON.parse(this.tokenJWT).token);
-  const id = tarefaAserModificada._id;
-
-  // Passa o headerToken no PATCH
-  this.http.patch<Tarefa>(`${this.apiURL}/api/update/${id}`, tarefaAserModificada, { headers: headerToken }).subscribe(
-      resultado => { 
-          console.log(resultado); 
-          this.READ_tarefas(); 
-      }
-  );
+  logout() {
+  localStorage.removeItem('id-token'); // Apaga o crachá do navegador
+  this.usuarioLogado.set(false);       // Esconde as tarefas e mostra o login
+  this.arrayDeTarefas.set([]);         // Limpa a lista da tela
 }
 }
+
